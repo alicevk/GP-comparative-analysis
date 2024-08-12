@@ -15,10 +15,15 @@ Machine Learning (ML) has been revolutionizing the medical field by enabling the
 ---
 
 ## Repository Guide
-| | |
-| - | - |
-| File | Content |
-| [dataset.ipynb](dataset.ipynb) | Dataset exploratory data analysis and pre-processing pipeline |
+
+The present repository is organized by different folders dividing each step of the project.
+
+| Folder | Content Description |
+| ------ | ------------------- |
+| [1 - Importing Dataset](1-Importing-Dataset) | Importing data and dataset overview |
+| [2 - Data Analysis and Preprocessing](2-Data-Analysis-and-Preprocessing) | Dataset exploratory data analysis and pre-processing pipeline |
+| [3 - First GP Implementation](3-First-GP-Implementation) | First try at the Gaussian Process method implementation |
+
 
 
 <!-- ## Table of Contents
