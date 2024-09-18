@@ -20,10 +20,10 @@ The present repository is organized by different folders dividing each step of t
 
 | Folder | Content Description |
 | ------ | ------------------- |
-| [1 - Importing Dataset](1-Importing-Dataset) | Importing data and dataset overview |
-| [2 - Data Analysis and Preprocessing](2-Data-Analysis-and-Preprocessing) | Dataset exploratory data analysis and pre-processing pipeline |
-| [3 - First GP Implementation](3-First-GP-Implementation) | First try at the Gaussian Process method implementation |
-
+| [1 - EDA and Preprocessing](1-EDA-and-Preprocessing) | * Dataset overview and exploratory data analysis <br> * Dimensionality reduction <br> * Final pre-processing pipeline template |
+| [2 - GP Implementation](2-GP-Implementation) | * SciKit-Learn implementation <br> * GPytorch implementation <br> * Pyro implementation |
+| [3 - Optuna Optimization](3-Hyperparameter-Optimization) | * Optuna + SciKit-Learn model <br> * (?) + GPytorch model <br> * (?) +Pyro implementation |
+| [4 - Alternative Models](4-Alternative-Models) | * Lazy learners <br> * Eager learners |
 
 
 <!-- ## Table of Contents
