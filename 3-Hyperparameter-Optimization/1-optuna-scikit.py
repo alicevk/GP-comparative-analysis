@@ -3,7 +3,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, cross_validate
 from sklearn.metrics import roc_auc_score, accuracy_score
 import torch
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -13,6 +13,7 @@ import optuna
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF, DotProduct, Matern, RationalQuadratic, WhiteKernel
 from optuna import create_study, Trial
+import json
 
 # Fetch dataset from UCI Repository
 from ucimlrepo import fetch_ucirepo
@@ -30,9 +31,9 @@ Test_Size = 0.2
 Random_Seed = 82024
 Torch = False
 Num_trials = 1000
-Num_folds = 10
-Study_name = "gp_scikit_heart_1"
-Score = "roc_auc"  # Or "f1"
+Study_name = "scikit-study"
+Score = "roc_auc"
+Num_iterations = 50
 
 # Kernel setup
 Kernels = {
@@ -86,8 +87,7 @@ test_y = y.loc[test_index].values
 
 # Convert to torch tensor if requested
 if Torch:
-    train_X, train_y, test_X, test_y = torch.tensor(train_X),
-    torch.tensor(train_y), torch.tensor(test_X), torch.tensor(test_y)
+    train_X, train_y, test_X, test_y = torch.tensor(train_X), torch.tensor(train_y), torch.tensor(test_X), torch.tensor(test_y)
 
 # ---------------------------------- OPTUNA ---------------------------------- #
 # Function to create model instances
@@ -98,19 +98,19 @@ def create_instance_model(trial):
     parameters = {
         "kernel": Kernels[kernel_id],
         "n_restarts_optimizer": trial.suggest_int("n_restarts_optimizer", 0, 10),
-        "max_iter_predict": trial.suggest_int("max_iter_predict", 50, 1000, log=True),
-        "random_state": Random_Seed,
+        # "max_iter_predict": trial.suggest_int("max_iter_predict", 50, 500, log=True),
+        "random_state": Random_Seed
     }
 
     model = GaussianProcessClassifier(**parameters)
     return model
 
 # Objective function for Optuna
-def objective_function(trial, X, y, Num_folds=Num_folds, random_state=Random_Seed):
+def objective_function(trial):
     """Optuna's objective function"""
     model = create_instance_model(trial)
 
-    metrics = cross_val_score(model, X, y, scoring=Score, cv=Num_folds)
+    metrics = cross_val_score(model, X, y, scoring=Score)
     return metrics.mean()
 
 # Create the study with Optuna
@@ -120,27 +120,30 @@ study = create_study(
     direction="maximize",
     load_if_exists=True,
 )
+study.optimize(lambda trial: objective_function(trial), n_trials=Num_trials)
 
-study.optimize(lambda trial: objective_function(trial, train_X, train_y), n_trials=Num_trials)
-
-# Save and display the best results
-trialdf = study.trials_dataframe()
-trialdf.to_csv("trial_df.csv", index=False)
-
+# Print best trial
 best_trial = study.best_trial
-print(best_trial)
+print("Best trial:")
+print(f"  Value: {best_trial.value}")
+print("  Params: ")
+for key, value in best_trial.params.items():
+    print(f"    {key}: {value}")
 
-# Train and evaluate the final model
+# Evaluate the best model
 model = create_instance_model(best_trial)
-model.fit(train_X, train_y)
+acc, roc_auc = cross_validate(model, X, y, scoring=['accuracy', 'roc_auc'])
 
-# Test the model
-y_pred = model.predict(test_X)
-pred_probs = model.predict_proba(test_X)
+print(f"Accuracy: {acc:.4f}")
+print(f"AUC-ROC: {roc_auc:.4f}")
 
-# Model evaluation
-acc = accuracy_score(test_y, y_pred)
-roc_auc = roc_auc_score(test_y, pred_probs[:, 1])
+# Save best trial parameters and evaluation to a JSON file
+best_trial_params = {
+    'params': best_trial.params,
+    'evaluation':{
+        'accuracy': acc,
+        'roc_auc': roc_auc
+}}
 
-print(f"Accuracy: {acc:.2f}")
-print(f"AUC-ROC: {roc_auc:.2f}")
+with open('scikit-best-trial.json', 'w') as f:
+    json.dump(best_trial_params, f)
