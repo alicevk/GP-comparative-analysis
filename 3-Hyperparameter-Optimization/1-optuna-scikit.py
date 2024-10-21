@@ -1,4 +1,5 @@
 # Import needed libraries and modules
+from codecarbon import EmissionsTracker
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -30,7 +31,7 @@ PC_Features = True
 Test_Size = 0.2
 Random_Seed = 82024
 Torch = False
-Num_trials = 1000
+Num_trials = 100
 Study_name = "scikit-study"
 Score = "roc_auc"
 Num_iterations = 50
@@ -88,6 +89,13 @@ test_y = y.loc[test_index].values
 # Convert to torch tensor if requested
 if Torch:
     train_X, train_y, test_X, test_y = torch.tensor(train_X), torch.tensor(train_y), torch.tensor(test_X), torch.tensor(test_y)
+
+# ---------------------------------------------------------------------------- #
+#                                 OPTIMIZATION                                 #
+# ---------------------------------------------------------------------------- #
+# Initiate CodeCarbon to track emissions
+tracker = EmissionsTracker('GP scikit optimization', log_level='warning')
+tracker.start()
 
 # ---------------------------------- OPTUNA ---------------------------------- #
 # Function to create model instances
@@ -147,3 +155,5 @@ best_trial_params = {
 
 with open('scikit-best-trial.json', 'w') as f:
     json.dump(best_trial_params, f)
+    
+tracker.stop

@@ -1,4 +1,5 @@
 # Import needed libraries and modules
+from codecarbon import EmissionsTracker
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -31,7 +32,7 @@ PC_Features = True
 Test_Size = 0.2
 Random_Seed = 82024
 Torch = True
-Num_trials = 1000
+Num_trials = 100
 Study_name = "gpytorch-study"
 Score = "roc_auc"
 Num_iterations = 100
@@ -73,6 +74,12 @@ if Torch:
     X = torch.tensor(X)
     y = torch.tensor(y).double()
 
+# ---------------------------------------------------------------------------- #
+#                                 OPTIMIZATION                                 #
+# ---------------------------------------------------------------------------- #
+# Initiate CodeCarbon to track emissions
+tracker = EmissionsTracker('GP gpytorch optimization', log_level='warning')
+tracker.start()
 
 # ---------------------------------- OPTUNA ---------------------------------- #
 # Define GP model
@@ -196,3 +203,5 @@ best_trial_params = {
 
 with open('gpytorch-best-trial.json', 'w') as f:
     json.dump(best_trial_params, f)
+    
+tracker.stop()
