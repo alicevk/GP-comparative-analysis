@@ -1,0 +1,10 @@
+codecarbon==2.7.1
+gpytorch==1.12
+matplotlib==3.5.1
+numpy==1.21.5
+optuna==4.0.0
+pandas==2.2.3
+scikit_learn==1.4.1.post1
+seaborn==0.13.2
+torch==2.4.0
+ucimlrepo==0.0.7
