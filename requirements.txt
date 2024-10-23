@@ -6,5 +6,8 @@ optuna==4.0.0
 pandas==2.2.3
 scikit_learn==1.4.1.post1
 seaborn==0.13.2
+setuptools==59.6.0
 torch==2.4.0
 ucimlrepo==0.0.7
+
+# pode estar errado!
