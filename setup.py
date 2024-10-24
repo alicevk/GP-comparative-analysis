@@ -26,3 +26,4 @@ setup(
 )
 
 # pode estar errado!
+# PyTorch tem que fazer a instalação na mão!

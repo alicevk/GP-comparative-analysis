@@ -15,6 +15,7 @@ from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF, DotProduct, Matern, RationalQuadratic, WhiteKernel
 from optuna import create_study, Trial
 import json
+from sklearn.pipeline import Pipeline
 
 # Fetch dataset from UCI Repository
 from ucimlrepo import fetch_ucirepo
@@ -22,30 +23,18 @@ heart_disease = fetch_ucirepo(id=45)
 df = heart_disease.data.original
 
 # ---------------------------------------------------------------------------- #
-#                                PRE-PROCESSING                                #
+#                                     SETUP                                    #
 # ---------------------------------------------------------------------------- #
 
-# --------------------------------- SETTINGS --------------------------------- #
-Normalize = False
+##### SETTINGS #####
 PC_Features = True
-Test_Size = 0.2
 Random_Seed = 82024
-Torch = False
-Num_trials = 100
-Study_name = "scikit-study"
-Score = "roc_auc"
-Num_iterations = 50
+K_Folds = 10
+Max_Iterations = 200
+Study = "scikit-study"
+Num_Trials = 100
+####################
 
-# Kernel setup
-Kernels = {
-    "rbf": 1 * RBF(),
-    "dot": 1 * DotProduct(),
-    "matern": 1 * Matern(),
-    "quad": 1 * RationalQuadratic(),
-    "white": 1 * WhiteKernel(),
-}
-
-# ------------------------------- DATA HANDLING ------------------------------ #
 # Drop missing values
 df = df.dropna()
 df = df.reset_index(drop=True)
@@ -57,103 +46,124 @@ df.loc[df["num"] != 0, "num"] = 1
 X = df.iloc[:,:-1]
 y = df['num']
 
-# Normalize if requested
-if (Normalize) or (PC_Features):
-    int_features, cat_features = ['age', 'trestbps', 'chol', 'thalach', 'oldpeak'],\
-    ['sex', 'cp', 'fbs', 'restecg', 'exang', 'slope', 'ca', 'thal']
-    
-    preprocessor = ColumnTransformer(
+# Separate integer from categorical features
+int_features, cat_features = ['age', 'trestbps', 'chol', 'thalach', 'oldpeak'],\
+['sex', 'cp', 'fbs', 'restecg', 'exang', 'slope', 'ca', 'thal']
+
+# Define preprocessing
+preprocessor = ColumnTransformer(
     transformers=[
         ('int', StandardScaler(), int_features),
         ('cat', OneHotEncoder(), cat_features)
     ])
-    X = preprocessor.fit_transform(X)
-else:
-    X = X.values
-
-# Apply PCA if requested
-if PC_Features:
-    pca = PCA(n_components=12)
-    X = pca.fit_transform(X)
-
-# Split train and test data
-index = list(range(y.size))
-train_index, test_index = train_test_split(index, test_size=Test_Size, random_state=Random_Seed)
-
-train_X = X[train_index]
-train_y = y.loc[train_index].values
-
-test_X = X[test_index]
-test_y = y.loc[test_index].values
-
-# Convert to torch tensor if requested
-if Torch:
-    train_X, train_y, test_X, test_y = torch.tensor(train_X), torch.tensor(train_y), torch.tensor(test_X), torch.tensor(test_y)
 
 # ---------------------------------------------------------------------------- #
-#                                 OPTIMIZATION                                 #
+#                              MODEL OPTIMIZATION                              #
 # ---------------------------------------------------------------------------- #
+
 # Initiate CodeCarbon to track emissions
 tracker = EmissionsTracker('GP scikit optimization', log_level='warning')
 tracker.start()
 
 # ---------------------------------- OPTUNA ---------------------------------- #
-# Function to create model instances
-def create_instance_model(trial):
-    """Create an instance of the model."""
-    kernel_id = trial.suggest_categorical("kernel", ["rbf", "white", "dot", "matern", "quad"])
 
+# Kernel setup
+Kernels = {
+    "rbf": 1 * RBF(),
+    "dot": 1 * DotProduct(),
+    "matern": 1 * Matern(),
+    "white": 1 * WhiteKernel(noise_level_bounds=(1e-10, 1e10))
+}
+
+# Function to create models
+def create_model_instance(trial):
+    # Suggest hyperparameters
+    kernel_id = trial.suggest_categorical("kernel", ["rbf", "dot", "matern", "white"])
+    
+    if kernel_id == 'matern':
+        nu = trial.suggest_categorical("matern_nu", [0.5, 1.5, 2.5])
+        kernel = 1 * Matern(nu=nu)
+    elif kernel_id == 'white':
+        noise_level = trial.suggest_float("white_noise", 1e-6, 1e2, log=True)
+        kernel = 1 * WhiteKernel(noise_level=noise_level)
+    else:
+        kernel = Kernels[kernel_id]
+    
     parameters = {
-        "kernel": Kernels[kernel_id],
+        "kernel": kernel,
         "n_restarts_optimizer": trial.suggest_int("n_restarts_optimizer", 0, 10),
-        # "max_iter_predict": trial.suggest_int("max_iter_predict", 50, 500, log=True),
+        "max_iter_predict": Max_Iterations,
         "random_state": Random_Seed
     }
 
     model = GaussianProcessClassifier(**parameters)
+    
     return model
 
 # Objective function for Optuna
-def objective_function(trial):
-    """Optuna's objective function"""
-    model = create_instance_model(trial)
+def objective(trial):
+    model = create_model_instance(trial)
+    
+    # Define pipeline depending on whether PCA is requested or not
+    if PC_Features:
+        steps = [
+            ('preprocessor', preprocessor),
+            ('pca', PCA(n_components=12)),
+            ('model', model)
+        ]
+    else:
+        steps = [
+            ('preprocessor', preprocessor),
+            ('model', model)
+        ]
+        
+    pipeline = Pipeline(steps)
+        
+    roc_auc = cross_val_score(pipeline, X, y, scoring='roc_auc', cv=K_Folds)
+    return roc_auc.mean()
 
-    metrics = cross_val_score(model, X, y, scoring=Score)
-    return metrics.mean()
-
-# Create the study with Optuna
+# Create the study and run optimization
 study = create_study(
-    study_name=Study_name,
-    storage=f"sqlite:///{Study_name}.db",
+    study_name=Study,
+    storage=f"sqlite:///{Study}.db",
     direction="maximize",
     load_if_exists=True,
 )
-study.optimize(lambda trial: objective_function(trial), n_trials=Num_trials)
+study.optimize(lambda trial: objective(trial), n_trials=Num_Trials)
 
 # Print best trial
 best_trial = study.best_trial
 print("Best trial:")
-print(f"  Value: {best_trial.value}")
-print("  Params: ")
+print(f"Score: {best_trial.value}")
+print("Params: ")
 for key, value in best_trial.params.items():
     print(f"    {key}: {value}")
 
-# Evaluate the best model
-model = create_instance_model(best_trial)
-acc, roc_auc = cross_validate(model, X, y, scoring=['accuracy', 'roc_auc'])
+# Evaluate best model
+model = create_model_instance(best_trial)
+cv_results = cross_validate(model, X, y, scoring=['accuracy', 'roc_auc'], cv=K_Folds)
 
-print(f"Accuracy: {acc:.4f}")
-print(f"AUC-ROC: {roc_auc:.4f}")
+# Calculate and display results
+acc = np.mean(cv_results['test_accuracy'])
+acc_std = np.std(cv_results['test_accuracy'])
+roc_auc = np.mean(cv_results['test_roc_auc'])
+roc_auc_std = np.std(cv_results['test_roc_auc'])
+
+print(f"Accuracy: {acc:.4f} ± {acc_std:.4f}")
+print(f"AUC-ROC: {roc_auc:.4f} ± {roc_auc_std:.4f}")
 
 # Save best trial parameters and evaluation to a JSON file
 best_trial_params = {
     'params': best_trial.params,
     'evaluation':{
         'accuracy': acc,
-        'roc_auc': roc_auc
+        'accuracy STD': acc_std,
+        'ROC AUC': roc_auc,
+        'ROC AUC STD': roc_auc_std
 }}
 
 with open('scikit-best-trial.json', 'w') as f:
     json.dump(best_trial_params, f)
-    
-tracker.stop
+
+# Stop emission tracking
+_ = tracker.stop

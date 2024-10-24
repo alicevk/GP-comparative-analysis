@@ -1,1 +1,1 @@
-{"params": {"kernel": "SpectralMixture", "learning_rate": 0.05495787636388393}, "evaluation": {"accuracy": 0.8451977401129943, "roc_auc": 0.9249519471383714}}
+{"params": {"kernel": "Linear", "learning_rate": 0.027666287073849157}, "evaluation": {"accuracy": 0.8489655172413795, "accuracy STD": 0.044386869829243496, "ROC AUC": 0.9135609485114129, "ROC AUC STD": 0.03454262143979745}}
