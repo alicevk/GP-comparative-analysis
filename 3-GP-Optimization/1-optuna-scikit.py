@@ -1,21 +1,17 @@
 # Import needed libraries and modules
 from codecarbon import EmissionsTracker
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+import os
 import numpy as np
-from sklearn.model_selection import train_test_split, cross_val_score, cross_validate
-from sklearn.metrics import roc_auc_score, accuracy_score
-import torch
+import pandas as pd
+from sklearn.model_selection import cross_val_score, cross_validate
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
-import optuna
 from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import RBF, DotProduct, Matern, RationalQuadratic, WhiteKernel
-from optuna import create_study, Trial
-import json
+from sklearn.gaussian_process.kernels import RBF, DotProduct, Matern, WhiteKernel
 from sklearn.pipeline import Pipeline
+from optuna import create_study
+import json
 
 # Fetch dataset from UCI Repository
 from ucimlrepo import fetch_ucirepo
@@ -152,18 +148,28 @@ roc_auc_std = np.std(cv_results['test_roc_auc'])
 print(f"Accuracy: {acc:.4f} ± {acc_std:.4f}")
 print(f"AUC-ROC: {roc_auc:.4f} ± {roc_auc_std:.4f}")
 
-# Save best trial parameters and evaluation to a JSON file
+# Save best trial parameters to a JSON file
 best_trial_params = {
-    'params': best_trial.params,
-    'evaluation':{
-        'accuracy': acc,
-        'accuracy STD': acc_std,
-        'ROC AUC': roc_auc,
-        'ROC AUC STD': roc_auc_std
-}}
+    'params': best_trial.params
+}
 
 with open('scikit-best-trial.json', 'w') as f:
     json.dump(best_trial_params, f)
 
 # Stop emission tracking
 _ = tracker.stop
+
+# Save evaluation to an external file
+file = 'scores.csv'
+
+results = pd.DataFrame({
+    'scikit-optimization': [acc, acc_std, roc_auc, roc_auc_std]
+}, index = ['Accuracy', 'Accuracy STD', 'AUC-ROC', 'AUC-ROC STD'])
+
+# Check if file exists
+if os.path.exists(file):
+    temp = pd.read_csv(file, index_col=0)
+    results = pd.concat([temp, results], axis=1)
+
+# Export
+results.to_csv(file)
