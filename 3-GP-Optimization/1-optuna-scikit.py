@@ -149,7 +149,7 @@ print(f"Accuracy: {acc:.4f} ± {acc_std:.4f}")
 print(f"AUC-ROC: {roc_auc:.4f} ± {roc_auc_std:.4f}")
 
 # Save best trial parameters to a JSON file
-with open('scikit-best-trial.json', 'w') as f:
+with open('params/scikit-params.json', 'w') as f:
     json.dump(best_trial.params, f)
 
 # Stop emission tracking
