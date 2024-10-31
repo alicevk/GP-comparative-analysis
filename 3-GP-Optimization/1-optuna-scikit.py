@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
 from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import RBF, DotProduct, Matern, WhiteKernel
+from sklearn.gaussian_process.kernels import RBF, Matern, WhiteKernel, ExpSineSquared, RationalQuadratic
 from sklearn.pipeline import Pipeline
 from optuna import create_study
 import json
@@ -26,7 +26,7 @@ df = heart_disease.data.original
 PC_Features = True
 Random_Seed = 82024
 K_Folds = 10
-Max_Iterations = 200
+Max_Iterations = 500
 Study = "scikit-study"
 Num_Trials = 100
 ####################
@@ -63,27 +63,21 @@ tracker.start()
 
 # ---------------------------------- OPTUNA ---------------------------------- #
 
-# Kernel setup
-Kernels = {
-    "rbf": 1 * RBF(),
-    "dot": 1 * DotProduct(),
-    "matern": 1 * Matern(),
-    "white": 1 * WhiteKernel(noise_level_bounds=(1e-10, 1e10))
-}
-
 # Function to create models
 def create_model_instance(trial):
     # Suggest hyperparameters
-    kernel_id = trial.suggest_categorical("kernel", ["rbf", "dot", "matern", "white"])
-    
-    if kernel_id == 'matern':
-        nu = trial.suggest_categorical("matern_nu", [0.5, 1.5, 2.5])
-        kernel = 1 * Matern(nu=nu)
-    elif kernel_id == 'white':
-        noise_level = trial.suggest_float("white_noise", 1e-6, 1e2, log=True)
-        kernel = 1 * WhiteKernel(noise_level=noise_level)
-    else:
-        kernel = Kernels[kernel_id]
+    kernel_id = trial.suggest_categorical("kernel", ["rbf", "matern"])
+
+    len_scale = trial.suggest_float('length_scale', 1, 1e2, log=True)
+    nu = trial.suggest_float('nu', 1e-2, 1e2, log=True)
+ 
+    # Kernel setup
+    Kernels = {
+        'rbf': RBF(length_scale=len_scale),
+        'matern': Matern(length_scale=len_scale, nu=nu),
+    }
+ 
+    kernel = Kernels[kernel_id]
     
     parameters = {
         "kernel": kernel,
@@ -91,6 +85,8 @@ def create_model_instance(trial):
         "max_iter_predict": Max_Iterations,
         "random_state": Random_Seed
     }
+
+    print(f'Now trying: {parameters}')
 
     model = GaussianProcessClassifier(**parameters)
     
