@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
 from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import RBF, Matern, WhiteKernel, ExpSineSquared, RationalQuadratic
+from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.pipeline import Pipeline
 from optuna import create_study
 import json
