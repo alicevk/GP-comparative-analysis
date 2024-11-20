@@ -25,7 +25,7 @@ This repository is organized in different folders, dividing each step of the pro
 | [3 - GP Optimization](3-GP-Optimization) | * Optuna + SciKit-Learn model <br> * Optuna + GPytorch model |
 | [4 - Alternative Models](4-Alternative-Models) | * Lazy learners <br> * Eager learners |
 | [5 - SHAP Values](5-SHAP-Values) | * SHAP Analysis: SciKit-Learn model <br> * SHAP Analysis: lazy learners <br> * SHAP Analysis: eager learners |
-| [6 - General Comparison](6-General-Comparison) | * Emission visualization <br> * Score comparison |
+| [6 - General Comparison](6-General-Comparison) | * Emission visualization <br> * Score comparison <br> (*) Extra: Geração de gráficos para a monografia |
 
 
 Both [`requirements.txt`](requirements.txt) and [`setup.py`](setup.py) files have been included to promote easier access and reproductibility, allowing th use of either of the following commands to set up the environment:
